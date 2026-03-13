@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UAVO Dashboard | Chago</title>
+    <link rel="stylesheet" href="Styles.css">
+</head>
+<body>
+
+    <header>
+        <div class="carrusel-fondo">
+            <div class="carrusel-track">
+                <img src="Imagenes/GastroCard.png" alt="">
+                <img src="Imagenes/TiCard.png" alt="">
+                <img src="Imagenes/IndusCard.png" alt="">
+                <img src="Imagenes/AdmiCard.png" alt="">
+                <img src="Imagenes/AlimenCard.png" alt="">
+                <img src="Imagenes/GastroCard.png" alt="">
+                <img src="Imagenes/TiCard.png" alt="">
+                <img src="Imagenes/IndusCard.png" alt="">
+                <img src="Imagenes/AdmiCard.png" alt="">
+                <img src="Imagenes/AlimenCard.png" alt="">
+                <img src="Imagenes/GastroCard.png" alt="">
+                <img src="Imagenes/TiCard.png" alt="">
+                <img src="Imagenes/IndusCard.png" alt="">
+                <img src="Imagenes/AdmiCard.png" alt="">
+                <img src="Imagenes/AlimenCard.png" alt="">
+            </div>
+        </div>
+
+        <div class="logo-container">
+            <img src="Imagenes/UAVO MAXIMA CALIDAD.png" alt="UAVO Central" class="logo-central">
+        </div>
+
+        <div class="header-text">
+            <h1>ITINERARIO UAVO</h1>
+        </div>
+    </header>
+
+    <main class="container">
+        <div class="nav-card">
+            <select id="yearSelect" class="select-custom"></select>
+            <select id="monthSelect" class="select-custom"></select>
+            <div style="flex:1; display:flex; align-items:center; gap:10px">
+            </div>
+        </div>
+
+        <div class="calendar-grid" id="calendarGrid"></div>
+        
+        <div id="itineraryList"></div>
+    </main>
+
+    <footer class="site-footer">
+        <div class="footer-content">
+            <p>Síguenos en Facebook:</p>
+            <a href="https://www.facebook.com/share/18sEzsNfkV/" target="_blank" rel="noopener noreferrer" class="footer-link">
+                <img src="Imagenes/facebook.png" alt="Facebook" class="footer-icon"> Noti Avisos UAVO 
+            </a>
+        </div>
+    </footer>
+
+    <div id="modalRoot" style="display:none"></div>
+
+    <script>
+        const months = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+        const storageKey = 'uagro-chago-v2024';
+        
+        let currentYear = new Date().getFullYear();
+        let currentMonth = new Date().getMonth();
+
+        const ySel = document.getElementById('yearSelect');
+        const mSel = document.getElementById('monthSelect');
+        for(let i=2024; i<=2030; i++) ySel.innerHTML += `<option value="${i}" ${i==currentYear?'selected':''}>${i}</option>`;
+        months.forEach((m, i) => mSel.innerHTML += `<option value="${i}" ${i==currentMonth?'selected':''}>${m}</option>`);
+
+        function load() { return JSON.parse(localStorage.getItem(storageKey) || '{}'); }
+        function save(d) { localStorage.setItem(storageKey, JSON.stringify(d)); }
+
+        // FUNCIÓN PARA ELIMINAR EVENTOS (Ahora siempre disponible)
+        window.deleteEvent = function(iso, index) {
+            if(confirm("¿Estás seguro de que deseas eliminar este evento?")) {
+                const evs = load();
+                evs[iso].splice(index, 1);
+                if(evs[iso].length === 0) delete evs[iso];
+                save(evs);
+                render();
+            }
+        };
+
+        function render() {
+            const events = load();
+            const grid = document.getElementById('calendarGrid');
+            const list = document.getElementById('itineraryList');
+            grid.innerHTML = ''; list.innerHTML = '';
+
+            ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'].forEach(d => grid.innerHTML += `<div style="text-align:center; font-weight:bold; font-size:12px">${d}</div>`);
+
+            const firstDay = new Date(currentYear, currentMonth, 1).getDay();
+            const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+
+            for(let i=0; i<firstDay; i++) grid.innerHTML += `<div></div>`;
+
+            for(let d=1; d<=daysInMonth; d++) {
+                const iso = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+                const hasEv = events[iso] && events[iso].length > 0;
+                
+                const cell = document.createElement('div');
+                cell.className = `cal-cell ${hasEv?'has-ev':''}`;
+                cell.innerHTML = d;
+                cell.onclick = () => openModal(iso);
+                grid.appendChild(cell);
+
+                if(hasEv) {
+                    const item = document.createElement('div');
+                    item.className = `itinerary-item`;
+                    const dayName = new Date(currentYear, currentMonth, d).toLocaleDateString('es',{weekday:'short'});
+                    
+                    item.innerHTML = `
+                        <div class="day-tag"><span style="font-size:24px; font-weight:900">${d}</span><span>${dayName}</span></div>
+                        <div class="event-card">
+                            ${events[iso].map((ev, index) => `
+                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; border-bottom:1px solid #eee; padding-bottom:10px">
+                                    <div style="flex:1">
+                                        <span class="badge bg-${ev.cat}">${ev.cat}</span>
+                                        <h4 style="margin:5px 0">${ev.time ? `[${ev.time}] ` : ''}${ev.title}</h4>
+                                        <p style="font-size:13px; color:#444; margin:0">${ev.desc}</p>
+                                    </div>
+                                    <button onclick="deleteEvent('${iso}', ${index})" class="btn-delete-inline">
+                                        🗑️ Eliminar
+                                    </button>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `;
+                    list.appendChild(item);
+                }
+            }
+        }
+
+        function openModal(iso) {
+            const root = document.getElementById('modalRoot');
+            root.style.display = 'block';
+            
+            root.innerHTML = `
+                <div class="modal-overlay" onclick="if(event.target === this) this.parentElement.style.display='none'">
+                    <div class="modal-box improved-modal">
+                        <h2 style="margin:0 0 20px 0; font-size: 26px;">Nuevo para ${iso}</h2>
+                        
+                        <label class="modal-label">Categoría</label>
+                        <select id="mCat" class="modal-input">
+                            <option value="urgente">🚨 Urgente</option>
+                            <option value="eventos">📅 Eventos</option>
+                            <option value="tareas">📝 Tareas</option>
+                            <option value="becas">💰 Becas</option>
+                        </select>
+
+                        <input id="mTitle" placeholder="Título" class="modal-input">
+                        
+                        <label class="modal-label">Hora</label>
+                        <input type="time" id="mTime" class="modal-input">
+
+                        <textarea id="mDesc" placeholder="Descripción" class="modal-input" style="height:90px"></textarea>
+                        
+                        <label class="modal-label">Adjuntar archivo</label>
+                        <div class="file-input-container" style="margin-bottom: 20px;">
+                            <input type="file" id="mFile">
+                        </div>
+
+                        <div class="modal-footer">
+                            <button class="btn-secondary" onclick="document.getElementById('modalRoot').style.display='none'">Cerrar</button>
+                            <button class="btn-save" id="mSave">Guardar</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('mSave').onclick = () => {
+                const title = document.getElementById('mTitle').value;
+                if(!title) return alert("Falta el título."); 
+                
+                const evs = load();
+                evs[iso] = evs[iso] || [];
+                evs[iso].push({
+                    cat: document.getElementById('mCat').value,
+                    title: title,
+                    time: document.getElementById('mTime').value,
+                    desc: document.getElementById('mDesc').value
+                });
+                save(evs); 
+                root.style.display = 'none'; 
+                render(); 
+            };
+        }
+
+        ySel.onchange = (e) => { currentYear = parseInt(e.target.value); render(); };
+        mSel.onchange = (e) => { currentMonth = parseInt(e.target.value); render(); };
+
+        render();
+    </script>
+</body>
+</html>
